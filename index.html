@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Wishlist Ara dan Ido</title>
+    <!-- Add favicon to prevent 404 errors -->
+    <link rel="icon" href="data:,">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <style>
+        :root {
+            --primary-color: #FF99C8;
+            --text-color: #695C5C;
+            --background-color: #FFF5F7;
+            --card-color: #ffffff;
+            --border-color: #FFB3C6;
+            --secondary-color: #FCB6D0;
+            --error-color: #FF4F81;
+            --success-color: #4CAF50;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #FFE5EC, #FFB3C6);
+            border-radius: 15px;
+        }
+
+        .header h1 {
+            color: #FF4F81;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #FF6B98;
+            font-size: 1.2rem;
+        }
+
+        .header h1:before,
+        .header h1:after {
+            content: '♥';
+            color: #FF4F81;
+            margin: 0 10px;
+        }
+
+        .card {
+            background: var(--card-color);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(255, 153, 200, 0.2);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-primary:hover, .btn-secondary:hover {
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            background-color: #FFE5EC;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .wishlist-item {
+            background: #FFF5F7;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .wishlist-item h3 {
+            margin-bottom: 0.5rem;
+            color: #FF4F81;
+        }
+
+        .wishlist-item p {
+            margin-bottom: 0.5rem;
+            color: #695C5C;
+        }
+
+        .item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .item-actions button {
+            flex: 1;
+            padding: 0.5rem;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 1rem;
+        }
+
+        #userInfo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.5rem;
+        }
+
+        #userInfo img {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .logout-btn {
+            max-width: 150px;
+            margin: 0.5rem auto;
+        }
+
+        /* Admin panel */
+        #adminPanel {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #FFE5EC;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background-color: #FF4F81;
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        /* Completed wishlist item */
+        .wishlist-item.completed {
+            border-left: 4px solid #4CAF50;
+        }
+
+        /* Auth form styling */
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            background-color: #FFE5EC;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .auth-tab:first-child {
+            border-radius: 10px 0 0 10px;
+        }
+        
+        .auth-tab:last-child {
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .auth-tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .auth-form h3 {
+            color: #FF4F81;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .form-message.error {
+            background-color: rgba(255, 79, 129, 0.1);
+            color: var(--error-color);
+        }
+        
+        .form-message.success {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: var(--success-color);
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        
+        .divider:before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: var(--border-color);
+            z-index: 0;
+        }
+        
+        .divider span {
+            background-color: white;
+            padding: 0 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Profile avatar placeholder */
+        .avatar-placeholder {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem auto;
+            }
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Container -->
+    <div class="container" id="authContainer">
+        <div class="card">
+            <div class="header">
+                <h1>wishlist ara and ido</h1>
+                <p>Masuk untuk melanjutkan</p>
+            </div>
+            
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')">Login</div>
+                <div class="auth-tab" id="registerTab" onclick="switchAuthTab('register')">Daftar</div>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="form-control" placeholder="Masukkan email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Masukkan password">
+                </div>
+                <button id="loginButton" class="btn btn-primary">Login</button>
+                <div id="loginMessage" class="form-message"></div>
+                
+                <div class="divider">
+                    <span>Atau</span>
+                </div>
+                
+                <button id="passwordResetBtn" class="btn btn-secondary">Lupa Password?</button>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="registerForm" class="auth-form" style="display: none;">
+                <div class="form-group">
+                    <label for="registerName">Nama Lengkap</label>
+                    <input type="text" id="registerName" class="form-control" placeholder="Masukkan nama lengkap">
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" class="form-control" placeholder="Masukkan email">
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" class="form-control" placeholder="Masukkan password (min. 6 karakter)">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Konfirmasi Password</label>
+                    <input type="password" id="confirmPassword" class="form-control" placeholder="Konfirmasi password">
+                </div>
+                <button id="registerButton" class="btn btn-primary">Daftar</button>
+                <div id="registerMessage" class="form-message"></div>
+            </div>
+            
+            <!-- Reset Password Form -->
+            <div id="resetForm" class="auth-form" style="display: none;">
+                <h3>Reset Password</h3>
+                <div class="form-group">
+                    <label for="resetEmail">Email</label>
+                    <input type="email" id="resetEmail" class="form-control" placeholder="Masukkan email untuk reset password">
+                </div>
+                <button id="sendResetButton" class="btn btn-primary">Kirim Email Reset</button>
+                <button id="backToLoginBtn" class="btn btn-secondary">Kembali ke Login</button>
+                <div id="resetMessage" class="form-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div class="container" id="appContainer" style="display: none;">
+        <div class="header">
+            <h1>Aplikasi Wishlist</h1>
+            <p>Impian & Harapan Kamu</p>
+            <div id="userInfo"></div>
+            <div id="adminPanel" style="display: none;">
+                <p>Mode Admin Aktif - Anda dapat melihat semua harapan</p>
+            </div>
+            <button onclick="signOut()" class="btn btn-primary logout-btn">Keluar</button>
+        </div>
+
+        <div class="card">
+            <div class="tabs">
+                <div class="tab active" id="viewTab" onclick="showSection('view')">Lihat Wishlist</div>
+                <div class="tab" id="addTab" onclick="showSection('add')">Tambah Baru</div>
+                <div class="tab" id="profileTab" onclick="showSection('profile')">Profil</div>
+            </div>
+
+            <div id="viewSection">
+                <div class="tabs">
+                    <div class="tab active" id="allTab" onclick="filterWishlist('all')">Semua</div>
+                    <div class="tab" id="pendingTab" onclick="filterWishlist('pending')">Menunggu</div>
+                    <div class="tab" id="completedTab" onclick="filterWishlist('completed')">Selesai</div>
+                </div>
+                <div id="wishlistItems">
+                    <div class="loader">Memuat harapan...</div>
+                </div>
+            </div>
+
+            <div id="addSection" style="display: none;">
+                <input type="text" id="wishText" class="form-control" placeholder="Apa harapanmu?">
+                <textarea id="wishDescription" class="form-control" placeholder="Deskripsi (opsional)"></textarea>
+                <button onclick="addWish()" class="btn btn-primary">Tambah Harapan</button>
+            </div>
+            
+            <div id="profileSection" style="display: none;">
+                <h3 style="color: #FF4F81; margin-bottom: 1rem;">Profil Pengguna</h3>
+                <div class="form-group">
+                    <label for="displayName">Nama Tampilan</label>
+                    <input type="text" id="displayName" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="emailDisplay">Email</label>
+                    <input type="email" id="emailDisplay" class="form-control" disabled>
+                </div>
+                <button id="update<!DOCTYPE html>
+                    <html lang="id">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Aplikasi Wishlist Ara dan Ido</title>
+                        <!-- Add favicon to prevent 404 errors -->
+                        <link rel="icon" href="data:,">
+                        <!-- Firebase SDK -->
+                        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+                        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+                        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+                        <style>
+                            :root {
+                                --primary-color: #FF99C8;
+                                --text-color: #695C5C;
+                                --background-color: #FFF5F7;
+                                --card-color: #ffffff;
+                                --border-color: #FFB3C6;
+                                --secondary-color: #FCB6D0;
+                                --error-color: #FF4F81;
+                                --success-color: #4CAF50;
+                            }
+                    
+                            * {
+                                margin: 0;
+                                padding: 0;
+                                box-sizing: border-box;
+                                font-family: 'Segoe UI', system-ui, sans-serif;
+                            }
+                    
+                            body {
+                                background-color: var(--background-color);
+                                color: var(--text-color);
+                                line-height: 1.5;
+                            }
+                    
+                            .container {
+                                max-width: 800px;
+                                margin: 2rem auto;
+                                padding: 0 1rem;
+                            }
+                    
+                            .header {
+                                text-align: center;
+                                margin-bottom: 2rem;
+                                padding: 1rem;
+                                background: linear-gradient(135deg, #FFE5EC, #FFB3C6);
+                                border-radius: 15px;
+                            }
+                    
+                            .header h1 {
+                                color: #FF4F81;
+                                font-size: 2.5rem;
+                                margin-bottom: 0.5rem;
+                            }
+                    
+                            .header p {
+                                color: #FF6B98;
+                                font-size: 1.2rem;
+                            }
+                    
+                            .header h1:before,
+                            .header h1:after {
+                                content: '♥';
+                                color: #FF4F81;
+                                margin: 0 10px;
+                            }
+                    
+                            .card {
+                                background: var(--card-color);
+                                border-radius: 15px;
+                                padding: 1.5rem;
+                                margin-bottom: 1.5rem;
+                                box-shadow: 0 4px 6px rgba(255, 153, 200, 0.2);
+                            }
+                    
+                            .btn {
+                                padding: 0.75rem 1.5rem;
+                                border: none;
+                                border-radius: 10px;
+                                font-size: 1rem;
+                                cursor: pointer;
+                                transition: all 0.3s;
+                                color: white;
+                                width: 100%;
+                                margin-bottom: 0.5rem;
+                            }
+                    
+                            .btn-primary {
+                                background-color: var(--primary-color);
+                            }
+                    
+                            .btn-secondary {
+                                background-color: var(--secondary-color);
+                            }
+                    
+                            .btn-primary:hover, .btn-secondary:hover {
+                                opacity: 0.9;
+                            }
+                    
+                            .tabs {
+                                display: flex;
+                                gap: 0.5rem;
+                                margin-bottom: 1rem;
+                            }
+                    
+                            .tab {
+                                flex: 1;
+                                padding: 0.75rem;
+                                text-align: center;
+                                background-color: #FFE5EC;
+                                border-radius: 10px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            }
+                    
+                            .tab.active {
+                                background-color: var(--primary-color);
+                                color: white;
+                            }
+                    
+                            .form-control {
+                                width: 100%;
+                                padding: 0.75rem;
+                                border: 2px solid var(--border-color);
+                                border-radius: 10px;
+                                margin-bottom: 1rem;
+                                font-size: 1rem;
+                            }
+                    
+                            .wishlist-item {
+                                background: #FFF5F7;
+                                border-radius: 10px;
+                                padding: 1rem;
+                                margin-bottom: 1rem;
+                                border: 1px solid var(--border-color);
+                            }
+                    
+                            .wishlist-item h3 {
+                                margin-bottom: 0.5rem;
+                                color: #FF4F81;
+                            }
+                    
+                            .wishlist-item p {
+                                margin-bottom: 0.5rem;
+                                color: #695C5C;
+                            }
+                    
+                            .item-actions {
+                                display: flex;
+                                gap: 0.5rem;
+                            }
+                    
+                            .item-actions button {
+                                flex: 1;
+                                padding: 0.5rem;
+                            }
+                    
+                            .loader {
+                                text-align: center;
+                                padding: 1rem;
+                            }
+                    
+                            #userInfo {
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                margin-top: 0.5rem;
+                            }
+                    
+                            #userInfo img {
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 50%;
+                                margin-right: 0.5rem;
+                            }
+                    
+                            .logout-btn {
+                                max-width: 150px;
+                                margin: 0.5rem auto;
+                            }
+                    
+                            /* Admin panel */
+                            #adminPanel {
+                                margin-top: 1rem;
+                                padding: 1rem;
+                                background-color: #FFE5EC;
+                                border-radius: 10px;
+                                text-align: center;
+                            }
+                    
+                            .admin-badge {
+                                display: inline-block;
+                                background-color: #FF4F81;
+                                color: white;
+                                padding: 0.2rem 0.5rem;
+                                border-radius: 5px;
+                                font-size: 0.8rem;
+                                margin-left: 0.5rem;
+                            }
+                    
+                            /* Completed wishlist item */
+                            .wishlist-item.completed {
+                                border-left: 4px solid #4CAF50;
+                            }
+                    
+                            /* Auth form styling */
+                            .auth-tabs {
+                                display: flex;
+                                margin-bottom: 1.5rem;
+                            }
+                            
+                            .auth-tab {
+                                flex: 1;
+                                text-align: center;
+                                padding: 1rem;
+                                background-color: #FFE5EC;
+                                cursor: pointer;
+                                transition: all 0.3s;
+                            }
+                            
+                            .auth-tab:first-child {
+                                border-radius: 10px 0 0 10px;
+                            }
+                            
+                            .auth-tab:last-child {
+                                border-radius: 0 10px 10px 0;
+                            }
+                            
+                            .auth-tab.active {
+                                background-color: var(--primary-color);
+                                color: white;
+                            }
+                            
+                            .auth-form h3 {
+                                color: #FF4F81;
+                                margin-bottom: 1rem;
+                                text-align: center;
+                            }
+                            
+                            .form-group {
+                                margin-bottom: 1rem;
+                            }
+                            
+                            .form-group label {
+                                display: block;
+                                margin-bottom: 0.5rem;
+                                font-weight: 500;
+                            }
+                            
+                            .form-message {
+                                margin-top: 1rem;
+                                padding: 0.75rem;
+                                border-radius: 10px;
+                                text-align: center;
+                            }
+                            
+                            .form-message.error {
+                                background-color: rgba(255, 79, 129, 0.1);
+                                color: var(--error-color);
+                            }
+                            
+                            .form-message.success {
+                                background-color: rgba(76, 175, 80, 0.1);
+                                color: var(--success-color);
+                            }
+                            
+                            .divider {
+                                text-align: center;
+                                margin: 1.5rem 0;
+                                position: relative;
+                            }
+                            
+                            .divider:before {
+                                content: "";
+                                position: absolute;
+                                top: 50%;
+                                left: 0;
+                                right: 0;
+                                height: 1px;
+                                background-color: var(--border-color);
+                                z-index: 0;
+                            }
+                            
+                            .divider span {
+                                background-color: white;
+                                padding: 0 1rem;
+                                position: relative;
+                                z-index: 1;
+                            }
+                            
+                            /* Profile avatar placeholder */
+                            .avatar-placeholder {
+                                width: 30px;
+                                height: 30px;
+                                border-radius: 50%;
+                                background-color: var(--primary-color);
+                                color: white;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: bold;
+                                margin-right: 0.5rem;
+                            }
+                    
+                            @media (max-width: 768px) {
+                                .container {
+                                    margin: 1rem auto;
+                                }
+                                .header h1 {
+                                    font-size: 2rem;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <!-- Login Container -->
+                        <div class="container" id="authContainer">
+                            <div class="card">
+                                <div class="header">
+                                    <h1>wishlist ara and ido</h1>
+                                    <p>Masuk untuk melanjutkan</p>
+                                </div>
+                                
+                                <div class="auth-tabs">
+                                    <div class="auth-tab active" id="loginTab" onclick="switchAuthTab('login')">Login</div>
+                                    <div class="auth-tab" id="registerTab" onclick="switchAuthTab('register')">Daftar</div>
+                                </div>
+                                
+                                <!-- Login Form -->
+                                <div id="loginForm" class="auth-form">
+                                    <div class="form-group">
+                                        <label for="loginEmail">Email</label>
+                                        <input type="email" id="loginEmail" class="form-control" placeholder="Masukkan email">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="loginPassword">Password</label>
+                                        <input type="password" id="loginPassword" class="form-control" placeholder="Masukkan password">
+                                    </div>
+                                    <button id="loginButton" class="btn btn-primary">Login</button>
+                                    <div id="loginMessage" class="form-message"></div>
+                                    
+                                    <div class="divider">
+                                        <span>Atau</span>
+                                    </div>
+                                    
+                                    <button id="passwordResetBtn" class="btn btn-secondary">Lupa Password?</button>
+                                </div>
+                                
+                                <!-- Register Form -->
+                                <div id="registerForm" class="auth-form" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="registerName">Nama Lengkap</label>
+                                        <input type="text" id="registerName" class="form-control" placeholder="Masukkan nama lengkap">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="registerEmail">Email</label>
+                                        <input type="email" id="registerEmail" class="form-control" placeholder="Masukkan email">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="registerPassword">Password</label>
+                                        <input type="password" id="registerPassword" class="form-control" placeholder="Masukkan password (min. 6 karakter)">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="confirmPassword">Konfirmasi Password</label>
+                                        <input type="password" id="confirmPassword" class="form-control" placeholder="Konfirmasi password">
+                                    </div>
+                                    <button id="registerButton" class="btn btn-primary">Daftar</button>
+                                    <div id="registerMessage" class="form-message"></div>
+                                </div>
+                                
+                                <!-- Reset Password Form -->
+                                <div id="resetForm" class="auth-form" style="display: none;">
+                                    <h3>Reset Password</h3>
+                                    <div class="form-group">
+                                        <label for="resetEmail">Email</label>
+                                        <input type="email" id="resetEmail" class="form-control" placeholder="Masukkan email untuk reset password">
+                                    </div>
+                                    <button id="sendResetButton" class="btn btn-primary">Kirim Email Reset</button>
+                                    <button id="backToLoginBtn" class="btn btn-secondary">Kembali ke Login</button>
+                                    <div id="resetMessage" class="form-message"></div>
+                                </div>
+                            </div>
+                        </div>
+                    
+                        <!-- Main App Container -->
+                        <div class="container" id="appContainer" style="display: none;">
+                            <div class="header">
+                                <h1>Aplikasi Wishlist</h1>
+                                <p>Impian & Harapan Kamu</p>
+                                <div id="userInfo"></div>
+                                <div id="adminPanel" style="display: none;">
+                                    <p>Mode Admin Aktif - Anda dapat melihat semua harapan</p>
+                                </div>
+                                <button onclick="signOut()" class="btn btn-primary logout-btn">Keluar</button>
+                            </div>
+                    
+                            <div class="card">
+                                <div class="tabs">
+                                    <div class="tab active" id="viewTab" onclick="showSection('view')">Lihat Wishlist</div>
+                                    <div class="tab" id="addTab" onclick="showSection('add')">Tambah Baru</div>
+                                    <div class="tab" id="profileTab" onclick="showSection('profile')">Profil</div>
+                                </div>
+                    
+                                <div id="viewSection">
+                                    <div class="tabs">
+                                        <div class="tab active" id="allTab" onclick="filterWishlist('all')">Semua</div>
+                                        <div class="tab" id="pendingTab" onclick="filterWishlist('pending')">Menunggu</div>
+                                        <div class="tab" id="completedTab" onclick="filterWishlist('completed')">Selesai</div>
+                                    </div>
+                                    <div id="wishlistItems">
+                                        <div class="loader">Memuat harapan...</div>
+                                    </div>
+                                </div>
+                    
+                                <div id="addSection" style="display: none;">
+                                    <input type="text" id="wishText" class="form-control" placeholder="Apa harapanmu?">
+                                    <textarea id="wishDescription" class="form-control" placeholder="Deskripsi (opsional)"></textarea>
+                                    <button onclick="addWish()" class="btn btn-primary">Tambah Harapan</button>
+                                </div>
+                                
+                                <div id="profileSection" style="display: none;">
+                                    <h3 style="color: #FF4F81; margin-bottom: 1rem;">Profil Pengguna</h3>
+                                    <div class="form-group">
+                                        <label for="displayName">Nama Tampilan</label>
+                                        <input type="text" id="displayName" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="emailDisplay">Email</label>
+                                        <input type="email" id="emailDisplay" class="form-control" disabled>
+                                    </div>
+                                    <button id="updatedocument.getElementById('displayName').value = user.displayName || '';
+                                    document.getElementById('emailDisplay').value = user.email || '';
+                                    
+                                    // Menampilkan aplikasi
+                                    authContainer.style.display = 'none';
+                                    appContainer.style.display = 'block';
+                                    
+                                    // Memuat wishlist
+                                    loadWishes();
+                                    
+                                    // Reset form login
+                                    document.getElementById('loginEmail').value = '';
+                                    document.getElementById('loginPassword').value = '';
+                                    loginButton.disabled = false;
+                                    registerButton.disabled = false;
+                                } else {
+                                    // Tidak terautentikasi
+                                    currentUser = null;
+                                    isAdmin = false;
+                                    console.log("Pengguna tidak terautentikasi");
+                                    
+                                    // Menampilkan layar login
+                                    authContainer.style.display = 'block';
+                                    appContainer.style.display = 'none';
+                                    
+                                    // Reset messages
+                                    loginMessage.textContent = "";
+                                    loginMessage.className = 'form-message';
+                                    registerMessage.textContent = "";
+                                    registerMessage.className = 'form-message';
+                                    
+                                    // Kembali ke tab login
+                                    switchAuthTab('login');
+                                }
+                            });
+                            
+                            // Update tampilan info pengguna
+                            function updateUserInfoDisplay() {
+                                if (!currentUser) return;
+                                
+                                let adminBadge = isAdmin ? '<span class="admin-badge">Admin</span>' : '';
+                                
+                                // Use profile image if available, otherwise use initial
+                                let avatarImg = '';
+                                if (currentUser.photoURL) {
+                                    avatarImg = `<img src="${currentUser.photoURL}" alt="Profile">`;
+                                } else {
+                                    const initial = (currentUser.displayName || currentUser.email || '?').charAt(0).toUpperCase();
+                                    avatarImg = `<div class="avatar-placeholder">${initial}</div>`;
+                                }
+                                
+                                userInfo.innerHTML = `
+                                    ${avatarImg}
+                                    <span>Hai, ${currentUser.displayName || 'Pengguna'} ${adminBadge}</span>
+                                `;
+                            }
+                
+                            // Logout
+                            function signOut() {
+                                auth.signOut()
+                                    .then(() => console.log("Berhasil logout"))
+                                    .catch(error => console.error("Error logout:", error));
+                            }
+                
+                            // Load wishes dari Firebase dengan penanganan error
+                            function loadWishes() {
+                                console.log("Memulai loadWishes()");
+                                if (!wishesRef) {
+                                    console.error("Referensi wishes tidak diatur");
+                                    document.getElementById('wishlistItems').innerHTML = 
+                                        '<p>Error: Referensi database tidak diinisialisasi</p>';
+                                    return;
+                                }
+                                
+                                wishesRef.on('value', (snapshot) => {
+                                    console.log("Data diterima dari Firebase:", snapshot.val());
+                                    wishes = [];
+                                    
+                                    if (snapshot.exists()) {
+                                        snapshot.forEach((childSnapshot) => {
+                                            const wish = childSnapshot.val();
+                                            wish.id = childSnapshot.key;
+                                            wishes.push(wish);
+                                        });
+                                    }
+                                    
+                                    console.log("Wishes yang diproses:", wishes);
+                                    // Sort wishes by date (newest first)
+                                    wishes.sort((a, b) => new Date(b.date) - new Date(a.date));
+                                    
+                                    displayWishes();
+                                }, (error) => {
+                                    console.error("Error loading Firebase data:", error);
+                                    document.getElementById('wishlistItems').innerHTML = 
+                                        '<p>Error memuat harapan: ' + error.message + '</p>';
+                                });
+                            }
+                
+                            function showSection(section) {
+                                console.log("Menampilkan section:", section);
+                                document.querySelectorAll('.tabs .tab').forEach(tab => {
+                                    if (tab.id === 'viewTab' || tab.id === 'addTab' || tab.id === 'profileTab') {
+                                        tab.classList.remove('active');
+                                    }
+                                });
+                                
+                                if (section === 'view') {
+                                    document.getElementById('viewTab').classList.add('active');
+                                    document.getElementById('viewSection').style.display = 'block';
+                                    document.getElementById('addSection').style.display = 'none';
+                                    document.getElementById('profileSection').style.display = 'none';
+                                } else if (section === 'add') {
+                                    document.getElementById('addTab').classList.add('active');
+                                    document.getElementById('viewSection').style.display = 'none';
+                                    document.getElementById('addSection').style.display = 'block';
+                                    document.getElementById('profileSection').style.display = 'none';
+                                } else if (section === 'profile') {
+                                    document.getElementById('profileTab').classList.add('active');
+                                    document.getElementById('viewSection').style.display = 'none';
+                                    document.getElementById('addSection').style.display = 'none';
+                                    document.getElementById('profileSection').style.display = 'block';
+                                }
+                            }
+                
+                            function filterWishlist(filter) {
+                                console.log("Memfilter wishlist:", filter);
+                                currentFilter = filter;
+                                
+                                document.querySelectorAll('#viewSection .tabs .tab').forEach(tab => {
+                                    tab.classList.remove('active');
+                                });
+                                
+                                document.getElementById(filter + 'Tab').classList.add('active');
+                                displayWishes();
+                            }
+                
+                            function addWish() {
+                                // Verifikasi jika pengguna terautentikasi
+                                if (!currentUser) {
+                                    alert("Silakan login untuk menambahkan harapan");
+                                    return;
+                                }
+                                
+                                const text = document.getElementById('wishText').value.trim();
+                                const description = document.getElementById('wishDescription').value.trim();
+                                
+                                console.log("Menambahkan harapan:", text);
+                                
+                                if (text) {
+                                    const wish = {
+                                        text: text,
+                                        description: description,
+                                        completed: false,
+                                        date: new Date().toISOString(),
+                                        userId: currentUser.uid,
+                                        userEmail: currentUser.email,
+                                        createdBy: currentUser.displayName || 'Pengguna'
+                                    };
+                                    
+                                    let saveLocation;
+                                    
+                                    // Simpan di dua lokasi jika admin
+                                    if (isAdmin) {
+                                        // Di lokasi global
+                                        saveLocation = database.ref('wishes').push(wish);
+                                        // Dan di lokasi user
+                                        database.ref('users/' + currentUser.uid + '/wishes').child(saveLocation.key).set(wish);
+                                    } else {
+                                        // Untuk pengguna biasa, simpan di lokasi user saja
+                                        saveLocation = database.ref('users/' + currentUser.uid + '/wishes').push(wish);
+                                    }
+                                    
+                                    saveLocation
+                                        .then(() => {
+                                            console.log("Harapan berhasil ditambahkan!");
+                                            // Clear inputs
+                                            document.getElementById('wishText').value = '';
+                                            document.getElementById('wishDescription').value = '';
+                                            
+                                            // Show success message
+                                            alert('Harapan berhasil ditambahkan!');
+                                            
+                                            // Switch to view section
+                                            showSection('view');
+                                        })
+                                        .catch((error) => {
+                                            console.error("Error menambahkan harapan:", error);
+                                            alert('Error menambahkan harapan: ' + error.message);
+                                        });
+                                } else {
+                                    alert("Silakan masukkan teks harapan Anda");
+                                }
+                            }
+                
+                            function toggleWish(id) {
+                                console.log("Toggle wish:", id);
+                                const wish = wishes.find(w => w.id === id);
+                                
+                                if (wish) {
+                                    const updates = {
+                                        completed: !wish.completed,
+                                        completedBy: !wish.completed ? currentUser.displayName || 'Pengguna' : null,
+                                        completedDate: !wish.completed ? new Date().toISOString() : null
+                                    };
+                                    
+                                    if (isAdmin && wish.userId !== currentUser.uid) {
+                                        // Admin menyelesaikan wish pengguna lain
+                                        // Perbarui di lokasi global dan lokasi pengguna
+                                        const promises = [
+                                            wishesRef.child(id).update(updates),
+                                            database.ref('users/' + wish.userId + '/wishes/' + id).update(updates)
+                                        ];
+                                        
+                                        Promise.all(promises)
+                                            .then(() => console.log("Status wish diperbarui di dua lokasi"))
+                                            .catch(error => console.error("Error memperbarui wish:", error));
+                                    } else {
+                                        // Pengguna memperbarui wish sendiri
+                                        wishesRef.child(id).update(updates)
+                                            .then(() => console.log("Status wish diperbarui"))
+                                            .catch(error => console.error("Error memperbarui wish:", error));
+                                    }
+                                }
+                            }
+                
+                            function deleteWish(id) {
+                                const wish = wishes.find(w => w.id === id);
+                                
+                                if (!wish) {
+                                    console.error("Wish tidak ditemukan:", id);
+                                    return;
+                                }
+                                
+                                // Pemeriksaan apakah pengguna berhak menghapus
+                                if (!isAdmin && wish.userId !== currentUser.uid) {
+                                    alert("Anda tidak berhak menghapus harapan orang lain");
+                                    return;
+                                }
+                                
+                                if (confirm('Apakah Anda yakin ingin menghapus harapan ini?')) {
+                                    console.log("Menghapus wish:", id);
+                                    
+                                    if (isAdmin && wish.userId !== currentUser.uid) {
+                                        // Admin menghapus wish pengguna lain
+                                        // Hapus di lokasi global dan lokasi pengguna
+                                        const promises = [
+                                            wishesRef.child(id).remove(),
+                                            database.ref('users/' + wish.userId + '/wishes/' + id).remove()
+                                        ];
+                                        
+                                        Promise.all(promises)
+                                            .then(() => console.log("Wish berhasil dihapus dari dua lokasi"))
+                                            .catch(error => console.error("Error menghapus wish:", error));
+                                    } else {
+                                        // Pengguna menghapus wish sendiri
+                                        wishesRef.child(id).remove()
+                                            .then(() => console.log("Wish berhasil dihapus"))
+                                            .catch(error => console.error("Error menghapus wish:", error));
+                                    }
+                                }
+                            }
+                
+                            function displayWishes() {
+                                console.log("Menampilkan wishes dengan filter:", currentFilter);
+                                const container = document.getElementById('wishlistItems');
+                                container.innerHTML = '';
+                                
+                                let filteredWishes = wishes;
+                                if (currentFilter === 'pending') {
+                                    filteredWishes = wishes.filter(w => !w.completed);
+                                } else if (currentFilter === 'completed') {
+                                    filteredWishes = wishes.filter(w => w.completed);
+                                }
+                                
+                                console.log("Jumlah wishes setelah filter:", filteredWishes.length);
+                                
+                                if (filteredWishes.length === 0) {
+                                    container.innerHTML = '<p>Tidak ada harapan yang ditemukan.</p>';
+                                    return;
+                                }
+                                
+                                filteredWishes.forEach(wish => {
+                                    const wishElement = document.createElement('div');
+                                    wishElement.className = `wishlist-item ${wish.completed ? 'completed' : ''}`;
+                                    
+                                    let createdInfo = wish.createdBy ? `Dibuat oleh: ${wish.createdBy}` : '';
+                                    
+                                    // Tambahkan indikator pemilik jika admin
+                                    if (isAdmin && wish.userId !== currentUser.uid) {
+                                        createdInfo += ` (${wish.userEmail})`;
+                                    }
+                                    
+                                    let completedInfo = wish.completed && wish.completedBy ? 
+                                        `<p><em>Diselesaikan oleh ${wish.completedBy} pada ${formatDate(wish.completedDate)}</em></p>` : '';
+                                    
+                                    wishElement.innerHTML = `
+                                        <h3>${wish.text}</h3>
+                                        ${wish.description ? `<p>${wish.description}</p>` : ''}
+                                        <p><small>${createdInfo} • ${formatDate(wish.date)}</small></p>
+                                        ${completedInfo}
+                                        <div class="item-actions">
+                                            <button onclick="toggleWish('${wish.id}')" class="btn btn-primary">
+                                                ${wish.completed ? 'Batalkan' : 'Selesaikan'}
+                                            </button>
+                                            <button onclick="deleteWish('${wish.id}')" class="btn btn-primary">Hapus</button>
+                                        </div>
+                                    `;
+                                    container.appendChild(wishElement);
+                                });
+                            }
+                
+                            // Format tanggal menjadi format yang lebih mudah dibaca
+                            function formatDate(dateString) {
+                                if (!dateString) return '';
+                                
+                                const date = new Date(dateString);
+                                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                                return date.toLocaleDateString('id-ID', options);
+                            }
+                        } catch (initError) {
+                            console.error("Error initializing Firebase:", initError);
+                            alert("Terjadi kesalahan saat inisialisasi Firebase: " + initError.message);
+                        }
+                
+                        // Initialize dan periksa koneksi Firebase
+                        document.addEventListener('DOMContentLoaded', function() {
+                            console.log("DOM fully loaded, checking elements");
+                        });
+                    </script>
+                </body>
+                </html>
